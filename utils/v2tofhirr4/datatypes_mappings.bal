@@ -19,6 +19,7 @@ import ballerinax/health.hl7v25;
 import ballerinax/health.hl7v251;
 import ballerinax/health.hl7v26;
 import ballerinax/health.hl7v27;
+import ballerinax/health.hl7v271;
 import ballerinax/health.hl7v28;
 
 // --------------------------------------------------------------------------------------------#
@@ -28,10 +29,31 @@ import ballerinax/health.hl7v28;
 
 public isolated function ceToCodings(Ce ce) returns r4:Coding[]? {
     r4:Coding[] codings = [];
-    r4:Coding ceToCodingResult = ceToCoding(ce);
-    if ceToCodingResult != {} {
-        codings.push(ceToCodingResult);
+
+    // Add primary coding if any of the primary fields are present
+    if (ce.ce1 != "" || ce.ce2 != "" || ce.ce3 != "") {
+        r4:Coding primaryCoding = {
+            code: (ce.ce1 != "") ? ce.ce1 : (),
+            display: (ce.ce2 != "") ? ce.ce2 : (),
+            system: (ce.ce3 != "") ? ce.ce3 : ()
+        };
+        if (primaryCoding != {}) {
+            codings.push(primaryCoding);
+        }
     }
+
+    // Add alternate coding if any of the alternate fields are present
+    if (ce.ce4 != "" || ce.ce5 != "" || ce.ce6 != "") {
+        r4:Coding alternateCoding = {
+            code: (ce.ce4 != "") ? ce.ce4 : (),
+            display: (ce.ce5 != "") ? ce.ce5 : (),
+            system: (ce.ce6 != "") ? ce.ce6 : ()
+        };
+        if (alternateCoding != {}) {
+            codings.push(alternateCoding);
+        }
+    }
+
     return (codings.length() > 0) ? codings : ();
 };
 
@@ -50,6 +72,60 @@ public isolated function ceToCodeableConcept(Ce ce) returns r4:CodeableConcept =
 
 public isolated function cweToCodeableConcept(Cwe cwe) returns r4:CodeableConcept => {
     coding: cweToCodings(cwe)
+};
+
+public isolated function cweToDuration(Cwe cwe) returns r4:Duration? {
+    string code = cwe.cwe1 != "" ? cwe.cwe1 : cwe.cwe2;
+
+    return code != "" ? {
+        code: code
+    } : ();
+};
+
+public isolated function cweToIdentifier(Cwe cwe) returns r4:Identifier[] {
+    r4:Identifier[] identifiers = [];
+
+    // Primary identifier
+    if cwe.cwe1 != "" || cwe.cwe2 != "" || cwe.cwe3 != "" {
+        r4:Identifier primaryIdentifier = {
+            value: cwe.cwe1,
+            system: cwe.cwe3 != "" ? string `urn:oid:${cwe.cwe3}` : ()
+        };
+        if primaryIdentifier != {} {
+            identifiers.push(primaryIdentifier);
+        }
+    }
+
+    // Alternate identifier
+    if cwe.cwe4 != "" || cwe.cwe5 != "" || cwe.cwe6 != "" {
+        r4:Identifier alternateIdentifier = {
+            value: cwe.cwe4,
+            system: cwe.cwe6 != "" ? string `urn:oid:${cwe.cwe6}` : ()
+        };
+        if alternateIdentifier != {} {
+            identifiers.push(alternateIdentifier);
+        }
+    }
+
+    return identifiers;
+};
+
+public isolated function cweToQuantity(Cwe cwe) returns r4:Quantity? {
+    r4:Quantity quantity = {
+        code: cwe.cwe1,
+        unit: cwe.cwe1 != "" ? cwe.cwe1 : cwe.cwe2,
+        system: cwe.cwe3 != "" ? string `urn:oid:${cwe.cwe3}` : ()
+    };
+
+    return (quantity.code != "" || quantity.unit != "" || quantity.system != "") ? quantity : ();
+};
+
+public isolated function cweToString(Cwe cwe) returns string? {
+    return cwe.cwe2 != "" ? cwe.cwe2 : cwe.cwe9;
+};
+
+public isolated function cweToCode(Cwe cwe) returns r4:code? {
+    return cwe.cwe1 != "" ? cwe.cwe1 : cwe.cwe4;
 };
 
 public isolated function ceToCoding(Ce ce) returns r4:Coding => {
@@ -229,6 +305,11 @@ public isolated function msgToCoding(hl7v23:CM_MSG msg) returns r4:Coding => {
     system: (msg.cm_msg2 != "") ? msg.cm_msg2 : ()
 };
 
+public isolated function msgToCode(hl7v23:CM_MSG msg) returns r4:code? {
+    // MSG.2 (Trigger Event) maps to $this (the code value itself)
+    return (msg.cm_msg2 != "") ? <r4:code>msg.cm_msg2 : ();
+};
+
 public isolated function ptToMeta(Pt pt) returns r4:Meta {
     return {
         tag: [
@@ -242,10 +323,6 @@ public isolated function ptToMeta(Pt pt) returns r4:Meta {
 
 public isolated function ceToCode(Ce ce) returns r4:code? {
     return (ce.ce1 != "") ? ce.ce1 : ();
-};
-
-public isolated function cweToCode(Cwe cwe) returns r4:code? {
-    return (cwe.cwe1 != "") ? cwe.cwe1 : ();
 };
 
 public isolated function eiToIdentifier(Ei ei) returns r4:Identifier => {
@@ -345,6 +422,15 @@ public isolated function tsToInstant(Ts ts) returns r4:instant? {
 # Union type for CE data type for all supported hl7 versions.
 public type Ce hl7v23:CE|hl7v231:CE|hl7v24:CE|hl7v25:CE|hl7v251:CE;
 
+# Union type for CF data type for all supported hl7 versions.
+public type Cf hl7v23:CF|hl7v231:CF|hl7v24:CF|hl7v25:CF|hl7v251:CF|hl7v26:CF|hl7v27:CF|hl7v28:CF;
+
+# Union type for CQ data type for all supported hl7 versions.
+public type Cq hl7v231:CQ|hl7v24:CQ|hl7v25:CQ|hl7v251:CQ|hl7v26:CQ|hl7v27:CQ|hl7v28:CQ;
+
+# Union type for CNE data type for all supported hl7 versions.
+public type Cne hl7v231:CNE|hl7v24:CNE|hl7v25:CNE|hl7v251:CNE|hl7v26:CNE|hl7v27:CNE|hl7v28:CNE;
+
 # Union type for CWE data type for all supported hl7 versions.
 public type Cwe hl7v231:CWE|hl7v24:CWE|hl7v25:CWE|hl7v251:CWE|hl7v26:CWE|hl7v27:CWE|hl7v28:CWE;
 
@@ -381,5 +467,391 @@ public type Dtm hl7v23:DTM|hl7v25:DTM|hl7v251:DTM|hl7v26:DTM;
 # Union type for TS data type for all supported hl7 versions.
 public type Ts hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS;
 
+# Union type for CX data type for all supported hl7 versions.
+public type Cx hl7v23:CX|hl7v231:CX|hl7v24:CX|hl7v25:CX|hl7v251:CX|hl7v26:CX|hl7v27:CX|hl7v28:CX;
+
+# Union type for DLN data type for all supported hl7 versions.
+public type Dln hl7v23:DLN|hl7v231:DLN|hl7v24:DLN|hl7v25:DLN|hl7v251:DLN|hl7v26:DLN|hl7v27:DLN|hl7v28:DLN;
+
+# Union type for DR data type for all supported hl7 versions.
+public type Dr hl7v23:DR|hl7v231:DR|hl7v24:DR|hl7v25:DR|hl7v251:DR|hl7v26:DR|hl7v27:DR|hl7v28:DR;
+
+# Union type for FN data type for all supported hl7 versions.
+public type Fn hl7v231:FN|hl7v24:FN|hl7v25:FN|hl7v251:FN|hl7v26:FN|hl7v27:FN|hl7v28:FN;
+
 # Union type for IS data type for all supported hl7 versions.
-public type Is hl7v23:IS|hl7v24:IS|hl7v25:IS;
+public type Is hl7v23:IS|hl7v231:IS|hl7v24:IS|hl7v25:IS|hl7v251:IS|hl7v26:IS|hl7v27:IS|hl7v28:IS;
+
+# Union type for NM data type for all supported hl7 versions.
+public type Nm hl7v23:NM|hl7v231:NM|hl7v24:NM|hl7v25:NM|hl7v251:NM|hl7v26:NM|hl7v27:NM|hl7v28:NM;
+
+public isolated function cfToCodeableConcept(Cf cf) returns r4:CodeableConcept {
+    r4:Coding[] codings = [];
+
+    // Add primary coding if any of the primary fields are present
+    if (cf.cf1 != "" || cf.cf2 != "" || cf.cf3 != "") {
+        r4:Coding primaryCoding = {
+            code: (cf.cf1 != "") ? cf.cf1 : (),
+            display: (cf.cf2 != "") ? cf.cf2 : (),
+            system: (cf.cf3 != "") ? cf.cf3 : ()
+        };
+        if (primaryCoding != {}) {
+            codings.push(primaryCoding);
+        }
+    }
+
+    // Add alternate coding if any of the alternate fields are present
+    if (cf.cf4 != "" || cf.cf5 != "" || cf.cf6 != "") {
+        r4:Coding alternateCoding = {
+            code: (cf.cf4 != "") ? cf.cf4 : (),
+            display: (cf.cf5 != "") ? cf.cf5 : (),
+            system: (cf.cf6 != "") ? cf.cf6 : ()
+        };
+        if (alternateCoding != {}) {
+            codings.push(alternateCoding);
+        }
+    }
+
+    return {
+        coding: codings
+    };
+};
+
+public isolated function cneToCodeableConcept(Cne cne) returns r4:CodeableConcept {
+    r4:Coding[] codings = [];
+
+    // Add primary coding if any of the primary fields are present
+    if (cne.cne1 != "" || cne.cne2 != "" || cne.cne3 != "") {
+        r4:Coding primaryCoding = {
+            code: (cne.cne1 != "") ? cne.cne1 : (),
+            display: (cne.cne2 != "") ? cne.cne2 : (),
+            system: (cne.cne3 != "") ? cne.cne3 : (),
+            version: (cne.cne7 != "") ? cne.cne7 : ()
+        };
+        if (primaryCoding != {}) {
+            codings.push(primaryCoding);
+        }
+    }
+
+    // Add alternate coding if any of the alternate fields are present
+    if (cne.cne4 != "" || cne.cne5 != "" || cne.cne6 != "") {
+        r4:Coding alternateCoding = {
+            code: (cne.cne4 != "") ? cne.cne4 : (),
+            display: (cne.cne5 != "") ? cne.cne5 : (),
+            system: (cne.cne6 != "") ? cne.cne6 : (),
+            version: (cne.cne8 != "") ? cne.cne8 : ()
+        };
+        if (alternateCoding != {}) {
+            codings.push(alternateCoding);
+        }
+    }
+
+    return {
+        coding: codings,
+        text: (cne.cne9 != "") ? cne.cne9 : ()
+    };
+};
+
+public isolated function cqToQuantity(Cq cq) returns r4:Quantity? {
+    decimal|error value = decimal:fromString(cq.cq1);
+    if value is decimal {
+        r4:Quantity quantity = {
+            value: value
+        };
+        if cq.cq2 is hl7v26:CWE {
+            quantity.unit = (<hl7v26:CWE>cq.cq2).cwe1;
+        } else if cq.cq2 is hl7v27:CWE {
+            quantity.unit = (<hl7v27:CWE>cq.cq2).cwe1;
+        } else if cq.cq2 is hl7v28:CWE {
+            quantity.unit = (<hl7v28:CWE>cq.cq2).cwe1;
+        }
+        return quantity;
+    } else {
+        return ();
+    }
+};
+
+public isolated function cqToCode(Cq cq) returns r4:code? {
+    if cq.cq2 is hl7v26:CWE {
+        return (<hl7v26:CWE>cq.cq2).cwe1 != "" ? (<hl7v26:CWE>cq.cq2).cwe1 : ();
+    } else if cq.cq2 is hl7v27:CWE {
+        return (<hl7v27:CWE>cq.cq2).cwe1 != "" ? (<hl7v27:CWE>cq.cq2).cwe1 : ();
+    } else if cq.cq2 is hl7v28:CWE {
+        return (<hl7v28:CWE>cq.cq2).cwe1 != "" ? (<hl7v28:CWE>cq.cq2).cwe1 : ();
+    }
+    return ();
+};
+
+public isolated function cqToDecimal(Cq cq) returns decimal? {
+    decimal|error value = decimal:fromString(cq.cq1);
+    return value is decimal ? value : ();
+};
+
+public isolated function cqToUnsignedInt(Cq cq) returns int? {
+    decimal|error value = decimal:fromString(cq.cq1);
+    if value is decimal {
+        // Convert to minutes based on CQ.2 unit
+        string unit = "";
+        if cq.cq2 is hl7v26:CWE {
+            unit = (<hl7v26:CWE>cq.cq2).cwe1;
+        } else if cq.cq2 is hl7v27:CWE {
+            unit = (<hl7v27:CWE>cq.cq2).cwe1;
+        } else if cq.cq2 is hl7v28:CWE {
+            unit = (<hl7v28:CWE>cq.cq2).cwe1;
+        }
+
+        // Convert to minutes based on unit
+        decimal minutes = value;
+        if unit == "h" || unit == "hr" || unit == "hour" {
+            minutes = value * 60;
+        } else if unit == "d" || unit == "day" {
+            minutes = value * 24 * 60;
+        } else if unit == "wk" || unit == "week" {
+            minutes = value * 7 * 24 * 60;
+        } else if unit == "mo" || unit == "month" {
+            minutes = value * 30 * 24 * 60;
+        } else if unit == "a" || unit == "yr" || unit == "year" {
+            minutes = value * 365 * 24 * 60;
+        }
+
+        // Convert to unsigned int (positive integer)
+        int|error result = int:fromString(minutes.toString());
+        return result is int && result >= 0 ? result : ();
+    }
+    return ();
+};
+
+public isolated function cxToIdentifier(Cx cx) returns r4:Identifier {
+    r4:Identifier identifier = {
+        value: (cx.cx1 != "") ? cx.cx1 : (),
+        system: (cx.cx4.hd1 != "") ? string `urn:oid:${cx.cx4.hd1}` : (),
+        'type: (cx.cx5 != "") ? {
+            coding: [
+                {
+                    code: cx.cx5
+                }
+            ]
+        } : ()
+    };
+
+    // Add check digit extension if present
+    if (cx.cx2 != "") {
+        r4:Extension[] extensions = [];
+        r4:Extension checkDigitExtension = {
+            url: "http://hl7.org/fhir/StructureDefinition/identifier-checkDigit",
+            valueString: cx.cx2
+        };
+        extensions.push(checkDigitExtension);
+
+        // Add check digit scheme extension if present
+        if (cx.cx3 != "") {
+            r4:Extension checkDigitSchemeExtension = {
+                url: "http://hl7.org/fhir/StructureDefinition/namingsystem-checkDigit",
+                valueString: cx.cx3
+            };
+            extensions.push(checkDigitSchemeExtension);
+        }
+
+        identifier.extension = extensions;
+    }
+
+    return identifier;
+};
+
+public isolated function cxToString(Cx cx) returns string? {
+    return cx.cx1 != "" ? cx.cx1 : ();
+};
+
+public isolated function dlnToIdentifier(Dln dln) returns r4:Identifier {
+    string system = "";
+    if dln.dln2 is hl7v271:CWE {
+        system = (<hl7v271:CWE>dln.dln2).cwe1;
+    } else if dln.dln2 is hl7v28:CWE {
+        system = (<hl7v28:CWE>dln.dln2).cwe1;
+    } else if dln.dln2 is hl7v27:CWE {
+        system = (<hl7v27:CWE>dln.dln2).cwe1;
+    } else {
+        system = dln.dln1;
+    }
+
+    r4:Identifier identifier = {
+        value: (dln.dln1 != "") ? dln.dln1 : (),
+        system: (system != "") ? system : (),
+        'type: {
+            coding: [
+                {
+                    code: "DL",
+                    system: "http://terminology.hl7.org/CodeSystem/v2-0203"
+                }
+            ]
+        }
+    };
+
+    return identifier;
+};
+
+public isolated function drToPeriod(Dr dr) returns r4:Period? {
+    r4:Period period = {};
+    if dr.dr1 is hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS {
+        period.'start = (dr.dr1 != "") ? hl7DateToFhir((<hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS>dr.dr1).ts1) : ();
+        period.end = (dr.dr2 != "") ? hl7DateToFhir((<hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS>dr.dr2).ts1) : ();
+    } else if dr.dr1 is hl7v26:DTM|hl7v27:DTM|hl7v28:DTM {
+        period.'start = (dr.dr1 != "") ? hl7DateToFhir(<string>dr.dr1) : ();
+        period.end = (dr.dr2 != "") ? hl7DateToFhir(<string>dr.dr2) : ();
+    }
+
+    return (period.'start != () || period.end != ()) ? period : ();
+};
+
+public isolated function drToDateTime(Dr dr) returns r4:dateTime? {
+    if dr.dr1 is hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS {
+        return (dr.dr1 != "") ? hl7DateToFhir((<hl7v23:TS|hl7v231:TS|hl7v24:TS|hl7v25:TS|hl7v251:TS>dr.dr1).ts1) : ();
+    } else if dr.dr1 is hl7v26:DTM|hl7v27:DTM|hl7v28:DTM {
+        return (dr.dr1 != "") ? hl7DateToFhir(<string>dr.dr1) : ();
+    }
+    return ();
+};
+
+public isolated function fnToHumanName(Fn fn) returns r4:HumanName {
+    r4:HumanName humanName = {
+        family: (fn.fn1 != "") ? fn.fn1 : ()
+    };
+
+    // Add extensions for family name components
+    r4:Extension[] familyExtensions = [];
+
+    // FN.2 (Own Surname Prefix) -> extension[1]
+    if (fn.fn2 != "") {
+        r4:Extension ownPrefixExtension = {
+            url: "http://hl7.org/fhir/StructureDefinition/humanname-own-prefix",
+            valueString: fn.fn2
+        };
+        familyExtensions.push(ownPrefixExtension);
+    }
+
+    if (familyExtensions.length() > 0) {
+        humanName.extension = familyExtensions;
+    }
+
+    return humanName;
+};
+
+public isolated function hdToIdentifier(Hd hd) returns r4:Identifier[] {
+    r4:Identifier[] identifiers = [];
+
+    // HD.1 (Namespace ID) -> value[1]
+    if (hd.hd1 != "") {
+        r4:Identifier namespaceIdentifier = {
+            value: hd.hd1
+        };
+        identifiers.push(namespaceIdentifier);
+    }
+
+    // HD.2 (Universal ID) -> value[2]
+    if (hd.hd2 != "") {
+        r4:Identifier universalIdentifier = {
+            value: hd.hd2,
+            'type: (hd.hd3 != "") ? {
+                coding: [
+                    {
+                        code: hd.hd3
+                    }
+                ]
+            } : ()
+        };
+        identifiers.push(universalIdentifier);
+    }
+
+    return identifiers;
+};
+
+public isolated function hdToUri(Hd hd) returns r4:uri? {
+    if (hd.hd2 != "") {
+        // HD.2 (Universal ID) with prefixing based on HD.3 (Universal ID Type)
+        if (hd.hd3 == "ISO" || hd.hd3 == "UUID") {
+            return string `urn:${(<string>hd.hd3).toLowerAscii()}:${hd.hd2}`;
+        } else if (hd.hd3 == "DNS" || hd.hd3 == "URI") {
+            return hd.hd2;
+        } else {
+            // Default to urn:oid: prefix if no specific type is specified
+            return string `urn:oid:${hd.hd2}`;
+        }
+    } else if (hd.hd1 != "") {
+        // HD.1 (Namespace ID) as fallback
+        return hd.hd1;
+    }
+    return ();
+};
+
+public isolated function idToBoolean(Id id) returns boolean? {
+    if (id == "") {
+        return ();
+    }
+    
+    // Common HL7 V2 boolean mappings
+    // Y = true, N = false, and other common patterns
+    string idValue = <string>id;
+    if (idValue == "Y" || idValue == "YES" || idValue == "1" || idValue == "TRUE") {
+        return true;
+    } else if (idValue == "N" || idValue == "NO" || idValue == "0" || idValue == "FALSE") {
+        return false;
+    }
+    
+    // If the value doesn't match common boolean patterns, return null
+    // as the mapping guide notes that vocabulary mapping is done at segment's field level
+    return ();
+};
+
+public isolated function idToCode(Id id) returns r4:code? {
+    // ID.1 maps to $value (the code value itself)
+    // Note that vocabulary mapping is done at the segment's field level
+    return (id != "") ? <r4:code>id : ();
+};
+
+public isolated function idToString(Id id) returns string? {
+    // ID.1 maps to $value (the string value itself)
+    return (id != "") ? <string>id : ();
+};
+
+public isolated function isToCodeableConcept(Is 'is) returns r4:CodeableConcept? {
+    // IS.1 (Identifier) maps to coding.code
+    r4:CodeableConcept codeableConcept = {
+        coding: [
+            {
+                code: ('is != "") ? <r4:code>'is : ()
+            }
+        ]
+    };
+    return ('is != "") ? codeableConcept : ();
+};
+
+public isolated function isToCode(Is 'is) returns r4:code? {
+    // IS.1 maps to $value (the code value itself)
+    return ('is != "") ? <r4:code>'is : ();
+};
+
+public isolated function isToString(Is 'is) returns string? {
+    // IS.1 maps to $value (the string value itself)
+    return ('is != "") ? <string>'is : ();
+};
+
+public isolated function nmToQuantity(Nm nm) returns r4:Quantity? {
+    // NM.1 (Numeric) maps to $value (the decimal value itself)
+    decimal|error value = decimal:fromString(<string>nm);
+    if value is decimal {
+        return {
+            value: value
+        };
+    }
+    return ();
+};
+
+public isolated function nmToPositiveInt(Nm nm) returns int? {
+    // NM.1 (Numeric) maps to $value (the positive integer value itself)
+    int|error value = int:fromString(<string>nm);
+    if value is int && value > 0 {
+        return value;
+    }
+    return ();
+};
+
